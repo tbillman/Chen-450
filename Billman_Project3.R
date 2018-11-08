@@ -77,6 +77,7 @@ sens;spec
 #looking at an ROC curve for this model
 library(pROC)
 g <- roc(mn ~ probs)
+auc(g)
 plot(g)
 
 
@@ -97,6 +98,7 @@ OUT <- nu %*% t(covar)
 lda.pred= predict(lda.fit, sigdat[-lda.fit$na.action,])
 lda.class=lda.pred$class; lda.class
 
+table(lda.class,mn1)
 #This LDA predicts that all loans will have a positive NPV
 
 
@@ -116,7 +118,7 @@ acc <- sum(diag(TAB))/sum(TAB);acc
 
 
 #####KNN Analysis Full Set#####
-
+start.time = Sys.time()
 set.seed(1)
 knn.pred=knn(train = sigdat1[,1:7],
              test = sigdat1[,1:7],
@@ -128,11 +130,17 @@ spec = TAB[1,1]/sum(TAB[,1]);spec
 sens = TAB[2,2]/sum(TAB[,2]);sens
 acc <- sum(diag(TAB))/sum(TAB);acc
 
+end.time <- Sys.time()
+end.time - start.time
+
+
 ####################################
 ##### Cross Validation #############
 ####################################
 
 ##### Logistic Regression #####
+
+start.time = Sys.time()
 sigdat1 <- sigdat1[,-8]
 covar <- as.matrix(sigdat1[,1:7])
 resp <- as.integer(sigdat1[,8] > 0, ncol = 1)
@@ -140,11 +148,102 @@ resp <- as.integer(sigdat1[,8] > 0, ncol = 1)
 catdat <- data.frame(covar,resp)
 
 set.seed(1)
+glm.fit <- glm(resp ~ . , family = "binomial", data = catdat)
+cv.error <- cv.glm(catdat,glm.fit,K=5)
+cv.error.10=cv.glm(catdat,glm.fit,K=5)$delta[1]
+cv.error.10
+end.time <- Sys.time()
+end.time - start.time
+
+
+
+
+##### LDA Analysis #####
+start.time <- Sys.time()
+set.seed(1)
 f <- 5
 folds <- rep_len(1:f, length.out = dim(covar)[1])
 folds <- sample(folds, size = dim(covar)[1], replace = F)
 
+
+SENS <- NULL
+SPEC <- NULL
+ACC <- NULL
+for(i in 1:f){
+  test.id <- which(folds == i)
+  lda.fit=lda(resp ~ ., data = catdat[-test.id,])
+  
+  nu <- matrix(lda.fit$scaling[,1], nrow = 1)
+  covar <- as.matrix(catdat[test.id,-8])
+  OUT <- nu %*% t(covar)
+  
+  lda.pred= predict(lda.fit, catdat[test.id,])
+  lda.class=lda.pred$class
+  TAB <- table(lda.class,catdat$resp[test.id])
+  SPEC <- c(SPEC, TAB[1,1]/sum(TAB[,1]))
+  SENS <- c(SENS, TAB[2,2]/sum(TAB[,2]))
+  ACC <- c(ACC, sum(diag(TAB))/sum(TAB))
+}
+rbind(SENS,SPEC,ACC)
+mean(ACC)
+end.time <- Sys.time()
+end.time - start.time
+
+
+#####QDA Analysis#####
+start.time <- Sys.time()
 set.seed(1)
-glm.fit <- glm(resp ~ . , family = "binomial", data = catdat)
-cv.error.10=cv.glm(catdat,glm.fit,K=10)$delta[1]
-cv.error.10
+f <- 5
+folds <- rep_len(1:f, length.out = dim(catdat)[1])
+folds <- sample(folds, size = dim(catdat)[1], replace = F)
+
+
+SENS <- NULL
+SPEC <- NULL
+ACC <- NULL
+for(i in 1:f){
+  test.id <- which(folds == i)
+  qda.fit=qda(resp ~ ., data = catdat[-test.id,])
+  qda.class=predict(qda.fit,catdat[test.id,])$class
+  
+  TAB = table(qda.class,catdat$resp[test.id])
+  SPEC <- c(SPEC, TAB[1,1]/sum(TAB[,1]))
+  SENS <- c(SENS, TAB[2,2]/sum(TAB[,2]))
+  ACC <- c(ACC, sum(diag(TAB))/sum(TAB))
+}
+rbind(SENS,SPEC,ACC)
+mean(ACC)
+end.time <- Sys.time()
+end.time - start.time
+
+
+#####KNN Analysis#####
+
+set.seed(1)
+f <- 5
+folds <- rep_len(1:f, length.out = dim(catdat)[1])
+folds <- sample(folds, size = dim(catdat)[1], replace = F)
+
+
+SENS <- NULL
+SPEC <- NULL
+ACC <- NULL
+
+start.time <- Sys.time()
+for(i in 1:f){
+  test.id <- which(folds == i)
+  knn.pred=knn(train = catdat[-test.id,1:7],
+               test = catdat[test.id,1:7],
+               cl = catdat[-test.id,8],
+               k=3)
+  knn.pred
+  TAB <- table(knn.pred,catdat[test.id,8])
+  SPEC <- c(SPEC, TAB[1,1]/sum(TAB[,1]))
+  SENS <- c(SENS, TAB[2,2]/sum(TAB[,2]))
+  ACC <- c(ACC, sum(diag(TAB))/sum(TAB))
+}
+end.time <- Sys.time()
+end.time - start.time
+rbind(SENS,SPEC,ACC)
+mean(ACC)
+
