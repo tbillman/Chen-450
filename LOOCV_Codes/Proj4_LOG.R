@@ -2,12 +2,20 @@
 #####Thomas Billman#####
 
 #install.packages('tidyverse')
+library(parallel)
+library(foreach)
+library(doParallel)
 library(MASS)
 library(class)
 library(ISLR)
 library('tidyverse')
 
 catdat <- read_rds("catdat.rds")
+print("Data Read")
+no_cores <- detectCores() - 1
+cl <- makeCluster(no_cores)
+registerDoParallel(cl)
+
 
 ####################################
 ##### Cross Validation #############
@@ -21,27 +29,26 @@ f <- dim(catdat)[1]
 folds <- rep_len(1:f, length.out = dim(catdat)[1])
 folds <- sample(folds, size = dim(catdat)[1], replace = F)
 
+print("Starting Logistic")
 
-LSENS <- NULL
-LSPEC <- NULL
-LACC <- NULL
-for(i in 1:f){
+LACC <- foreach(i = 1:f,
+		.combine = c) %dopar% 
+{
   test.id <- which(folds == i)
   glm.fit <- glm(resp ~ . , family = "binomial", data = catdat[-test.id,])
   glm.pred <- predict.glm(glm.fit,catdat[test.id,-8])
   preds <- as.integer(glm.pred > .5)
-  TAB <- table(preds,catdat[test.id,8])
-  
-  LSENS <- c(LSENS,1)
-  LSPEC <- c(LSPEC,0)
-  LACC <- c(LACC, TAB[1,2]/sum(TAB))
+  as.integer(preds == catdat[test.id,8])
 }
-Lmat <- rbind(LSENS,LSPEC,LACC)
-mean(LACC)
-
+sens <- sum(LACC == 1 & catdat$resp == 1)/ sum(catdat$resp == 1)
+spec <- sum(LACC == 1 & catdat$resp == 0)/ sum(catdat$resp == 0)
+print("Logistic Sens,Spec = ")
+print(sens,spec)
+print("Logistic Acc")
+print(mean(LACC))
 end.time <- Sys.time()
-end.time - start.time
-write.csv(Lmat, file = "Logistic_LOOCV.csv")
+print("Logistic LOOCV took:")
+print(end.time - start.time)
 
 ##### LDA Analysis #####
 start.time <- Sys.time()
