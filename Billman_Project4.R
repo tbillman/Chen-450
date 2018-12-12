@@ -171,5 +171,6 @@ mean(ACC)
 
 #Results Boxplot
 nms <- c("Logistic", "LDA", "QDA", "KNN")
-boxplot(LOGDAT[3,], LDAT[3,], QDAT[3,], KDAT[3,],
-        names = nms, col = 1:4, xlab = "Models", ylab = "Accuracy")
+boxplot(LOGDAT[3,], LDAT[3,], QDAT[3,], KDAT[3,],outm[1,],
+        names = c(nms, "RF"), col = 1:5, xlab = "Models", ylab = "",
+        cex.lab = 3, cex.axis = 3)

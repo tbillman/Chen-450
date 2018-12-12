@@ -23,7 +23,7 @@ n <- dim(catdat)[1]
 print("KNN Beginning")
 ##### QDA Analysis #####
 start.time <- Sys.time()
-set.seed(1)
+
 KACC <- NULL
 KACC <- foreach(i = 1:n, .combine = c) %dopar% {
   knn.pred <- class::knn(train = catdat[-i,-8],
